@@ -67,6 +67,23 @@ def _rest(message: Message) -> str:
     return rest.strip()
 
 
+def _chunk_texts(blocks: list[str], max_len: int = 3800) -> list[str]:
+    """Разбивает блоки текста на сообщения в пределах лимита Telegram."""
+    chunks: list[str] = []
+    current: list[str] = []
+    size = 0
+    for block in blocks:
+        if current and size + len(block) + 2 > max_len:
+            chunks.append("\n\n".join(current))
+            current = []
+            size = 0
+        current.append(block)
+        size += len(block) + 2
+    if current:
+        chunks.append("\n\n".join(current))
+    return chunks
+
+
 def register(dp: Dispatcher, storage: Storage) -> None:
     # ------------------------------------------------------------- кнопки
     @dp.message(F.text == "Актуальное")
@@ -240,7 +257,8 @@ def register(dp: Dispatcher, storage: Storage) -> None:
                 line += f" | {r['price']}"
             line += f"\n{r['url']}"
             lines.append(line)
-        await message.answer("\n\n".join(lines), parse_mode="HTML")
+        for chunk in _chunk_texts(lines):
+            await message.answer(chunk, parse_mode="HTML")
 
     # ---------------------------------------------------- инлайн-кнопки
     @dp.callback_query(F.data.startswith("cat:"))
@@ -299,9 +317,10 @@ async def _fresh(message: Message, storage: Storage) -> None:
         await message.answer("Сейчас подходящих тендеров нет.",
                              reply_markup=MENU_KEYBOARD)
         return
-    lines = ["<b>Текущие подходящие тендеры:</b>", ""]
-    lines += [t.card_text() for t in matched]
-    await message.answer("\n\n".join(lines), parse_mode="HTML")
+    await message.answer("<b>Текущие подходящие тендеры:</b>",
+                         parse_mode="HTML")
+    for chunk in _chunk_texts([t.card_text() for t in matched]):
+        await message.answer(chunk, parse_mode="HTML")
 
 
 async def _stats(message: Message, storage: Storage) -> None:
