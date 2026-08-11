@@ -1,0 +1,4 @@
+aiogram>=3.4,<4
+beautifulsoup4>=4.12
+lxml>=5.0
+requests>=2.31
